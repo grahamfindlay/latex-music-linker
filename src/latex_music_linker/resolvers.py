@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from typing import Dict, Any, Optional
-
 import re
 import time
+from typing import Any
 
 import requests
 
@@ -12,11 +11,11 @@ def music_platform_resolver(
     name: str,
     artist: str,
     type: str,
-    year: Optional[int] = None,
+    year: int | None = None,
     country: str = "us",
     retries: int = 3,
     backoff_base: float = 0.5,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Resolve a music entity to a platform URL using the iTunes Search API.
 
     Returns a dict matching the schema in docs/music_link_tools_schema.md.
@@ -38,12 +37,12 @@ def music_platform_resolver(
 
     url = "https://itunes.apple.com/search"
 
-    def _request() -> Dict[str, Any]:
+    def _request() -> dict[str, Any]:
         resp = requests.get(url, params=params, timeout=10)
         resp.raise_for_status()
         return resp.json()
 
-    data: Optional[Dict[str, Any]] = None
+    data: dict[str, Any] | None = None
     for attempt in range(retries):
         try:
             data = _request()
@@ -130,7 +129,7 @@ def music_platform_resolver(
     }
 
 
-def smart_link_resolver(platform_url: str) -> Dict[str, Any]:
+def smart_link_resolver(platform_url: str) -> dict[str, Any]:
     """Convert a platform URL into a platform-agnostic smart link using song.link.
 
     Returns a dict with smartlink_url and redirector_url.
