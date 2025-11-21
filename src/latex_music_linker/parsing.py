@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import List, Optional
-
 import re
+from dataclasses import dataclass
 
 
 @dataclass
@@ -17,19 +15,19 @@ class MusicEntity:
     name: str
     artist: str
     type: str  # "album" or "track"
-    year: Optional[int]
+    year: int | None
     latex_text: str
     start_index: int
     end_index: int
-    platform_url: Optional[str] = None
-    smartlink_url: Optional[str] = None
+    platform_url: str | None = None
+    smartlink_url: str | None = None
 
 
 ITALIC_PATTERN = re.compile(r"\\textit\{([^}]*)\}")
 QUOTE_PATTERN = re.compile(r"``([^']*)''|\"([^\"]+)\"")
 
 
-def find_candidates(latex: str) -> List[MusicEntity]:
+def find_candidates(latex: str) -> list[MusicEntity]:
     """Heuristically extract album/track candidates from LaTeX.
 
     - \textit{Title} -> assume album
@@ -39,7 +37,7 @@ def find_candidates(latex: str) -> List[MusicEntity]:
     would infer the artist from context and populate the MusicEntity objects.
     """
 
-    entities: List[MusicEntity] = []
+    entities: list[MusicEntity] = []
 
     # Italic = album
     for m in ITALIC_PATTERN.finditer(latex):
@@ -79,7 +77,7 @@ def find_candidates(latex: str) -> List[MusicEntity]:
     return entities
 
 
-def apply_links_to_latex(latex: str, entities: List[MusicEntity]) -> str:
+def apply_links_to_latex(latex: str, entities: list[MusicEntity]) -> str:
     """Rewrite LaTeX by wrapping detected spans in \\href{...}{...}.
 
     Assumes entity spans do not overlap and are sorted by start_index.
@@ -94,12 +92,11 @@ def apply_links_to_latex(latex: str, entities: List[MusicEntity]) -> str:
     last_index = 0
 
     for e in entities:
-        pieces.append(latex[last_index:e.start_index])
+        pieces.append(latex[last_index : e.start_index])
 
         wrapped = e.latex_text
-        # crude guard: skip if already in a \href region
-        context_slice = latex[max(0, last_index - 50) : e.end_index + 50]
-        if "\\href" not in context_slice:
+        # Avoid double-wrapping text that is already hyperlinked
+        if "\\href" not in e.latex_text:
             wrapped = f"\\href{{{e.smartlink_url}}}{{{e.latex_text}}}"
 
         pieces.append(wrapped)

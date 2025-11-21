@@ -1,9 +1,8 @@
 from __future__ import annotations
 
+import argparse
 import sys
 from pathlib import Path
-
-import argparse
 
 from .core import process_latex_file
 
