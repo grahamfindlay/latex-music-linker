@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "latex-music-linker"
+version = "0.1.0"
+description = "Automatically link music references in LaTeX newsletters."
+authors = [{name = "Your Name"}]
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = ["requests"]
+
+[project.scripts]
+latex-music-linker = "latex_music_linker.cli:main"
