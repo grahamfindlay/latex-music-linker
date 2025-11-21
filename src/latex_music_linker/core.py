@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import List
 
-from .parsing import find_candidates, apply_links_to_latex, MusicEntity
+from .parsing import MusicEntity, apply_links_to_latex, find_candidates
 from .resolvers import music_platform_resolver, smart_link_resolver
 
 
-def resolve_entities(entities: List[MusicEntity]) -> List[MusicEntity]:
+def resolve_entities(entities: list[MusicEntity]) -> list[MusicEntity]:
     """Populate platform_url and smartlink_url for each entity in-place."""
 
     for e in entities:
