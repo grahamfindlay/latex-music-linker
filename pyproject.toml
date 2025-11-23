@@ -11,14 +11,12 @@ readme = "README.md"
 requires-python = ">=3.9"
 dependencies = ["requests"]
 
-[project.optional-dependencies]
-dev = [
-    "pytest>=8",  # testing
-    "ruff>=0.6",  # formatting and linting
-]
-
 [project.scripts]
 latex-music-linker = "latex_music_linker.cli:main"
+
+[project.entry-points."latex_music_linker.agents"]
+heuristic = "latex_music_linker.agent:HeuristicStrategy"
+llm = "latex_music_linker.agent:LLMStrategy"
 
 [tool.ruff]
 line-length = 100
@@ -30,3 +28,9 @@ indent-style = "space"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.2",
+    "ruff>=0.14.6",
+]

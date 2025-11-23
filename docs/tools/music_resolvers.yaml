@@ -1,0 +1,59 @@
+version: 1
+about: Music entity resolution pipeline
+tools:
+  - name: music_platform_resolver
+    description: Resolve a music entity (album or track) to a platform-specific URL (Apple Music preferred).
+    input_schema:
+      type: object
+      required: ["name", "artist", "type"]
+      properties:
+        name:
+          type: string
+          description: Title of the album or track.
+        artist:
+          type: string
+          description: Primary artist for the entity.
+        type:
+          type: string
+          enum: ["album", "track"]
+          description: Whether the entity is an album or track.
+        year:
+          type: integer
+          description: Optional release year used for disambiguation.
+        country:
+          type: string
+          description: Two-letter country code for search, defaults to "us".
+    output_schema:
+      type: object
+      properties:
+        platform:
+          type: string
+          description: The platform the URL targets (apple_music recommended).
+        url:
+          type: string
+          description: Canonical platform URL for the entity.
+        confidence:
+          type: number
+          description: Best-guess confidence between 0.0 and 1.0.
+        raw_response:
+          type: object
+          description: Optional raw payload from the search API.
+
+  - name: smart_link_resolver
+    description: Convert a platform URL into a platform-agnostic smart link via song.link redirector.
+    input_schema:
+      type: object
+      required: ["platform_url"]
+      properties:
+        platform_url:
+          type: string
+          description: Platform-specific URL from music_platform_resolver.
+    output_schema:
+      type: object
+      properties:
+        smartlink_url:
+          type: string
+          description: Final smart link URL (album.link/song.link).
+        redirector_url:
+          type: string
+          description: Intermediate redirector URL that was fetched.
