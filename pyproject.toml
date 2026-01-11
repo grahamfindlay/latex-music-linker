@@ -17,6 +17,7 @@ latex-music-linker = "latex_music_linker.cli:main"
 [project.entry-points."latex_music_linker.agents"]
 heuristic = "latex_music_linker.agent:HeuristicStrategy"
 llm = "latex_music_linker.agent:LLMStrategy"
+claude-code = "latex_music_linker.agent:ClaudeCodeStrategy"
 
 [tool.ruff]
 line-length = 100
