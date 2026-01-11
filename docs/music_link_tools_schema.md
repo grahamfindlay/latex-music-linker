@@ -160,23 +160,22 @@ This is done **without** calling Songlink/Odesli's official API, to avoid rate-l
 
 Implementation guidelines:
 
-1. Construct a redirector URL:  
+1. Construct a redirector URL:
    `https://song.link/<platform_url>`
-2. Perform an HTTP GET request with redirects **disabled**.
-3. Inspect the "Location" header of the response.  
-4. Return the "Location" header value as `smartlink_url`.
+2. Perform an HTTP GET request following redirects.
+3. Capture the final URL after the redirect chain as `smartlink_url`.
 
-If the redirect or "Location" header is missing, set `smartlink_url` to null and include an error message in an optional diagnostic field (implementation-specific).
+If the request fails, set `smartlink_url` to null and include an error message in an optional diagnostic field (implementation-specific).
 
 ### Error Conditions
 
-If the redirect fails or the "Location" header is absent:
+If the request fails (network error, non-2xx status, etc.):
 
 ```json
 {
   "smartlink_url": null,
   "redirector_url": "https://song.link/https://music.apple.com/us/album/god-does-like-ugly/1832251919",
-  "error": "No Location header in redirect response"
+  "error": "network failure: <details>"
 }
 ```
 

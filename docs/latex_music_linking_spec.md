@@ -249,8 +249,8 @@ Converts platform URLs to universal smart links using the song.link redirector.
 **Behavior:**
 
 1. Constructs redirector URL: `https://song.link/<platform_url>`
-2. Makes HTTP GET request with `allow_redirects=False`
-3. Extracts final smart link from `Location` header
+2. Makes HTTP GET request following redirects
+3. Captures final URL after redirect chain as the smart link
 
 **Output:**
 

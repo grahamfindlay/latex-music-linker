@@ -138,7 +138,8 @@ def smart_link_resolver(platform_url: str) -> dict[str, Any]:
     redirector_url = "https://song.link/" + platform_url
 
     try:
-        resp = requests.get(redirector_url, allow_redirects=False, timeout=10)
+        resp = requests.get(redirector_url, allow_redirects=True, timeout=10)
+        resp.raise_for_status()
     except requests.RequestException as e:
         return {
             "smartlink_url": None,
@@ -146,15 +147,9 @@ def smart_link_resolver(platform_url: str) -> dict[str, Any]:
             "error": f"network failure: {e}",
         }
 
-    location = resp.headers.get("Location")
-    if not location:
-        return {
-            "smartlink_url": None,
-            "redirector_url": redirector_url,
-            "error": "No Location header in redirect response",
-        }
-
+    # After following redirects, the final URL is the smartlink
+    # e.g., https://album.link/i/1833088041 or https://song.link/i/...
     return {
-        "smartlink_url": location,
+        "smartlink_url": resp.url,
         "redirector_url": redirector_url,
     }
