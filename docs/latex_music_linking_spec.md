@@ -1,8 +1,8 @@
 # Specification Document: Automated Linking of Music References in LaTeX Newsletters
 
-**Version:** 1.0  
-**Audience:** Any AI agent or automated system  
-**Purpose:** Provide a complete, model-agnostic description of the task, motivations, constraints, and the proposed solution pipeline.
+**Version:** 2.0
+**Audience:** Any AI agent or automated system
+**Purpose:** Provide a complete, model-agnostic description of the task, motivations, constraints, and the solution pipeline.
 
 ---
 
@@ -10,15 +10,13 @@
 
 This document describes a system for automatically detecting references to music albums and songs inside a LaTeX document (specifically, a music newsletter), resolving those references to canonical streaming-platform URLs, and inserting platform-agnostic smart links (Songlink/Odesli links) into the LaTeX source.
 
-The AI agent receiving this document should be able to:
+The system:
 
-1. Understand the structure of typical music mentions in prose.
-2. Infer which textual spans correspond to **albums**, **songs**, and **artists**, even when not explicitly labeled.
-3. Use external tools (provided separately) to:
-   - Resolve the inferred entity to a specific platform URL (e.g., Apple Music).
-   - Convert that platform URL into a universal smart link using a redirect resolver.
-4. Rewrite the LaTeX input by inserting `\href{…}{…}` in the correct positions.
-5. Output a complete, modified LaTeX document.
+1. Detects `\album{...}` and `\song{...}` LaTeX commands in the document.
+2. Uses a pluggable agent strategy to enrich entities with artist names, years, and other metadata from context.
+3. Resolves each entity to a platform URL (Apple Music) via the iTunes Search API.
+4. Converts platform URLs to universal smart links using the song.link redirector.
+5. Rewrites the LaTeX by wrapping detected commands in `\href{...}{...}` hyperlinks.
 
 ---
 
@@ -36,274 +34,402 @@ The AI agent receiving this document should be able to:
 ### 2.2 Constraints
 
 - The system must work **without requiring the Songlink/Odesli API**, which has strict rate limits.
-- Instead, it should rely on:
-  - Public music platform search APIs (e.g., Apple's iTunes Search API).
-  - A lightweight redirect-based link-expansion method (“song.link redirector”).
-- The system should reliably differentiate **songs** from **albums** using contextual language cues.
-- The system must not require prior annotation in the LaTeX.
+- Instead, it relies on:
+  - Public music platform search APIs (Apple's iTunes Search API).
+  - A lightweight redirect-based link-expansion method (song.link redirector).
+- The system uses explicit `\album{...}` and `\song{...}` commands for detection (not prose analysis).
 - The system must preserve all original LaTeX formatting except where hyperlinks are added.
+- The system must not double-link text already inside `\href{...}{...}` or `\gref{...}{...}`.
 
 ---
 
-## 3. Types of Entities to Identify
+## 3. LaTeX Commands
 
-The agent must identify the following categories.
+The system expects authors to use two custom LaTeX commands to mark music references:
 
-### 3.1 Artists
+### 3.1 Command Definitions
 
-Usually proper nouns, often preceding possessive forms:
+Authors should define these commands in their document preamble:
 
-- `JID's`, `Prince`, `The Smile`, `Earl Sweatshirt and Alchemist`
+```latex
+\newcommand{\album}[1]{\textit{#1}}    % Italicize album titles
+\newcommand{\song}[1]{``#1''}           % Quote song titles
+```
 
-### 3.2 Albums
+### 3.2 Usage
 
-Cues for album references include:
+```latex
+\album{God Does Like Ugly}              % Detected as album
+\song{Gz}                               % Detected as track
+```
 
-- Appearing in `\textit{…}` markup  
-- Following patterns like:  
-  - `Artist's <Title> (Year)`  
-  - `<Title> (Year)` when context indicates album
-- Local context words: “album”, “LP”, “record”, “project”
+### 3.3 Detection Patterns
 
-### 3.3 Songs / Tracks
+The parser uses regex patterns to detect these commands:
 
-Cues for track references:
+- Albums: `\\album\{([^}]*)\}`
+- Songs: `\\song\{([^}]*)\}`
 
-- Appearing in quotation marks: `"Gz"` or `` ``Gz'' ``  
-- Following words like: “track”, “song”, “single”  
-- Being referenced as part of an album discussion
+### 3.4 Already-Linked Detection
 
-### 3.4 Mixed or Ambiguous Cases
+The system skips entities already wrapped in hyperlinks:
 
-When ambiguous:
-
-- Prefer album classification for italicized titles with years.
-- Prefer song classification for quoted titles.
-- Use semantic context (“this album”, “this song”, etc.).
+```latex
+\href{https://example.com}{\album{Title}}  % Skipped (not re-wrapped)
+\gref{https://example.com}{\album{Title}}  % Skipped (gref also detected)
+```
 
 ---
 
 ## 4. Example Input and Expected Output
 
-### 4.1 Example Input (Partial LaTeX Snippet)
+### 4.1 Example Input
 
 ```latex
-\item JID's \textit{God Does Like Ugly} (2025). 
+\documentclass{article}
+\newcommand{\album}[1]{\textit{#1}}
+\newcommand{\song}[1]{``#1''}
+
+\begin{document}
+\item JID's \album{God Does Like Ugly} (2025).
 So great was my anticipation for this album...
 I liked the \href{https://youtu.be/GhOUB6IGs6Y}{freestyle} that announced the album...
-If you live near any major roads, it is possible that you have already heard ``Gz''...
+If you live near any major roads, it is possible that you have already heard \song{Gz}...
+\end{document}
 ```
 
 ### 4.2 Example Output (With Links)
 
 ```latex
-\item JID's \href{https://album.link/i/1832251919}{\textit{God Does Like Ugly}} (2025).
+\documentclass{article}
+\newcommand{\album}[1]{\textit{#1}}
+\newcommand{\song}[1]{``#1''}
+
+\begin{document}
+\item JID's \href{https://album.link/i/1832251919}{\album{God Does Like Ugly}} (2025).
 So great was my anticipation for this album...
 I liked the \href{https://youtu.be/GhOUB6IGs6Y}{freestyle} that announced the album...
-If you live near any major roads, it is possible that you have already heard 
-\href{https://song.link/i/1812517950}{``Gz''}...
+If you live near any major roads, it is possible that you have already heard
+\href{https://song.link/i/1812517950}{\song{Gz}}...
+\end{document}
 ```
 
 ---
 
 ## 5. Architecture Overview
 
-To accomplish the task, the system uses **three components**:
-
-1. **LaTeX Content Analyzer** (AI agent step)  
-2. **Music Metadata Resolver** (external tool or script)  
-3. **LaTeX Rewriter** (AI agent step)
-
-Each component is described below.
-
----
-
-## 6. Step-by-Step Plan
-
-### Step 1 — Parse the LaTeX File
-
-The agent should extract:
-
-1. Plain text segments  
-2. Formatting markup (`\textit`, quotes, `\href`)  
-3. Positions of potential candidates for linking  
-
-No linking should occur inside existing `\href{…}{…}` blocks.
-
-### Step 2 — Identify Candidate Music Entities
-
-The agent should examine:
-
-- Italicized text → strong album candidate  
-- Quoted text → strong song candidate  
-- Nearby artist names  
-- Explicit contextual cues (“album”, “song”, “track”)  
-- Syntactic patterns (`Artist’s Title (Year)`)
-
-The agent should produce a structured list such as:
-
-```json
-[
-  {
-    "name": "God Does Like Ugly",
-    "type": "album",
-    "artist": "JID",
-    "year": 2025,
-    "latex_text": "\\textit{God Does Like Ugly}",
-    "occurrence_index": 17
-  },
-  {
-    "name": "Gz",
-    "type": "track",
-    "artist": "JID",
-    "year": 2025,
-    "latex_text": "``Gz''",
-    "occurrence_index": 92
-  }
-]
-```
-
-### Step 3 — Resolve Each Entity to a Canonical Music-Platform URL
-
-The system does **not** use the Odesli API.
-
-Instead, the agent must call or trigger the following independent tools (to be provided separately).
-
-#### Tool A – Platform Search Resolver
-
-**Inputs:**
-
-- `name`  
-- `artist`  
-- `type` (album / track)  
-- Optional `year`  
-
-**Expected behavior:**
-
-- Queries a public search API (e.g., Apple iTunes Search API).  
-- Filters results for best match.  
-- Returns a canonical Apple Music URL.
-
-Example output:
+The system uses a **four-step pipeline**:
 
 ```text
-https://music.apple.com/us/album/god-does-like-ugly/1832251919
+LaTeX Input
+    │
+    ▼
+[Step 1] find_candidates()
+         Extract \album{} and \song{} spans using regex
+    │
+    ▼
+[Step 2] apply_agent_strategy()
+         Enrich entities with artist/year from document context
+    │
+    ▼
+[Step 3] resolve_entities()
+         ├→ music_platform_resolver() → iTunes Search API
+         │                            → Returns Apple Music URL
+         └→ smart_link_resolver()     → song.link redirector
+                                       → Returns universal smart link
+    │
+    ▼
+[Step 4] apply_links_to_latex()
+         Wrap entities in \href{...}{...}
+    │
+    ▼
+Linked LaTeX Output
 ```
 
-#### Tool B – Smart Link Resolver
+---
+
+## 6. Agent Strategy System
+
+The system uses a pluggable agent architecture for enriching entities with metadata (artist, year) inferred from document context.
+
+### 6.1 Available Strategies
+
+| Strategy       | Description                                    | Requirements           |
+| -------------- | ---------------------------------------------- | ---------------------- |
+| `heuristic`    | Returns candidates unchanged (no enrichment)   | None                   |
+| `llm`          | Uses external LLM via `llm` CLI                | `llm` CLI installed    |
+| `claude-code`  | Uses Claude via `claude` CLI                   | `claude` CLI installed |
+
+### 6.2 Agent Behavior
+
+Agents receive:
+
+- The full LaTeX document
+- A list of candidate entities with positions
+
+Agents return enriched entities with:
+
+- `name`: Title of album/track (may be refined)
+- `artist`: Primary artist (inferred from context)
+- `type`: "album" or "track"
+- `year`: Release year (inferred from context)
+
+### 6.3 Agent Response Format
+
+Agents return JSON:
+
+```json
+{
+  "entities": [
+    {
+      "candidate_id": 0,
+      "name": "God Does Like Ugly",
+      "artist": "JID",
+      "type": "album",
+      "year": 2025,
+      "latex_text": "\\album{God Does Like Ugly}",
+      "start_index": 10,
+      "end_index": 36
+    }
+  ]
+}
+```
+
+### 6.4 Fallback Behavior
+
+If an agent fails (network error, parsing error, etc.), the system falls back to the heuristic strategy and logs a warning.
+
+---
+
+## 7. Music Resolution Tools
+
+### 7.1 Platform Search Resolver
+
+Queries the Apple iTunes Search API to find matching music entities.
 
 **Inputs:**
 
-- Platform URL
+- `name`: Title of album/track
+- `artist`: Primary artist
+- `type`: "album" or "track"
+- `year`: Optional release year
+- `country`: Two-letter country code (default: "us")
 
-**Expected behavior:**
+**Behavior:**
 
-- Constructs a redirect URL:
+1. Queries iTunes Search API with term = `"{name} {artist}"`
+2. Filters results by entity type
+3. Scores results using matching algorithm:
+   - Title exact match: +0.6
+   - Title partial match: +0.3
+   - Artist match: +0.3
+   - Year exact: +0.2
+   - Year ±1: +0.1
+4. Returns best match with confidence score
 
-  ```text
-  https://song.link/<platform-url>
-  ```
+**Output:**
 
-- Sends an HTTP GET with redirects disabled.  
-- Extracts the `Location` header.  
-- Returns the final smart link:
-
-  ```text
-  https://album.link/i/1832251919
-  ```
-
-### Step 4 — Insert Links into the LaTeX
-
-For albums:
-
-```latex
-\href{SMARTLINK}{\textit{Album Title}}
+```python
+{
+    "platform": "apple_music",
+    "url": "https://music.apple.com/us/album/god-does-like-ugly/1832251919",
+    "confidence": 0.9,
+    "raw_response": {...}
+}
 ```
 
-For songs:
+### 7.2 Smart Link Resolver
 
-```latex
-\href{SMARTLINK}{``Song Title''}
+Converts platform URLs to universal smart links using the song.link redirector.
+
+**Inputs:**
+
+- `platform_url`: Apple Music URL
+
+**Behavior:**
+
+1. Constructs redirector URL: `https://song.link/<platform_url>`
+2. Makes HTTP GET request with `allow_redirects=False`
+3. Extracts final smart link from `Location` header
+
+**Output:**
+
+```python
+{
+    "smartlink_url": "https://album.link/i/1832251919",
+    "redirector_url": "https://song.link/https://music.apple.com/..."
+}
 ```
 
-The agent must:
+---
 
-- Modify only the intended target spans.  
-- Preserve all original formatting.  
-- Avoid double-linking text already inside `\href`.
+## 8. Command-Line Interface
 
-### Step 5 — Produce Final LaTeX Output
+### 8.1 Basic Usage
 
-Return the entire LaTeX document with all music entities linked.
+```bash
+latex-music-linker <input.tex> <output.tex> [OPTIONS]
+```
+
+### 8.2 Options
+
+| Option           | Description                                    | Default       |
+| ---------------- | ---------------------------------------------- | ------------- |
+| `--country`      | Country code for iTunes Search                 | `us`          |
+| `--agent`        | Agent strategy (heuristic, llm, claude-code)   | `heuristic`   |
+| `--llm-model`    | Model for LLM agent                            | `gpt-4o-mini` |
+| `--agent-prompt` | Path to custom prompt file                     | Built-in      |
+| `--agent-tools`  | Path to custom tool schema file                | Built-in      |
+
+### 8.3 Environment Variables
+
+| Variable                           | Description            |
+| ---------------------------------- | ---------------------- |
+| `LATEX_MUSIC_LINKER_AGENT`         | Default agent strategy |
+| `LATEX_MUSIC_LINKER_LLM_MODEL`     | Default LLM model      |
+| `LATEX_MUSIC_LINKER_AGENT_PROMPT`  | Default prompt path    |
+| `LATEX_MUSIC_LINKER_AGENT_TOOLS`   | Default tools path     |
+
+### 8.4 Examples
+
+```bash
+# Basic usage with heuristic agent
+latex-music-linker input.tex output.tex
+
+# Using Claude Code agent
+latex-music-linker input.tex output.tex --agent claude-code
+
+# Using LLM agent with specific model
+latex-music-linker input.tex output.tex --agent llm --llm-model gpt-4-turbo
+
+# Using UK iTunes store
+latex-music-linker input.tex output.tex --country gb
+```
 
 ---
 
-## 7. Tools Required (External to the Agent)
+## 9. Programmatic API
 
-The AI agent does **not** need to implement these tools; it only needs to call them or request their outputs.
+### 9.1 String Processing
 
-### Tool A: Music Platform Resolver
+```python
+from latex_music_linker import process_latex_string
 
-- Function-level interface or web service  
-- Inputs: `{name, artist, type, year?}`  
-- Output: platform URL (string)
+linked_latex = process_latex_string(
+    latex_string,
+    agent_name="claude-code",
+    agent_options={"prompt_path": "/path/to/prompt.md"},
+    country="us"
+)
+```
 
-### Tool B: Smart Link Resolver
+### 9.2 File Processing
 
-- Function-level interface or web service  
-- Inputs: `{platform_url}`  
-- Output: `{smartlink_url}`
+```python
+from pathlib import Path
+from latex_music_linker import process_latex_file
 
-Both should be callable in sequence.
-
----
-
-## 8. Error Handling Guidelines
-
-### If Multiple Plausible Matches
-
-Select the best match using:
-
-- Exact title match preferred  
-- Artist match required (or very close)  
-- Year proximity if available  
-
-### If No Match Found
-
-- Skip linking.  
-- Return original LaTeX unchanged for that span.  
-- Log a warning rather than failing the whole document.
-
-### If Linking Conflicts with Existing `\href`
-
-Do not modify that span.
+process_latex_file(
+    Path("input.tex"),
+    Path("output.tex"),
+    agent_name="llm",
+    agent_options={"model": "gpt-4o"},
+    country="gb"
+)
+```
 
 ---
 
-## 9. Extensibility
+## 10. Error Handling Guidelines
 
-The system may later support:
+### 10.1 Multiple Plausible Matches
 
-- Spotify search instead of (or in addition to) Apple Music  
-- Bandcamp album or track resolution  
-- YouTube Music metadata  
-- Extraction of music entities from Markdown or HTML  
-- Replacement with other smart-link providers  
+The scoring algorithm selects the best match using:
 
-All improvements should remain compatible with the plan described above.
+- Exact title match preferred
+- Artist match required (or very close)
+- Year proximity if available
+
+### 10.2 No Match Found
+
+- Skip linking for that entity
+- Return original LaTeX unchanged for that span
+- Log a warning (do not fail the whole document)
+
+### 10.3 Network Failures
+
+- Retry up to 3 times with exponential backoff
+- If all retries fail, skip that entity
+
+### 10.4 Agent Failures
+
+- Fall back to heuristic strategy
+- Log warning with error details
+
+### 10.5 Already-Linked Content
+
+- Detect existing `\href{...}` and `\gref{...}` wrappers
+- Do not modify those spans
 
 ---
 
-## 10. Summary of Expected Agent Behavior
+## 11. Data Structures
 
-The agent must:
+### 11.1 MusicEntity
 
-1. **Understand** prose context and infer whether a referenced title is:
-   - an album  
-   - a song/track  
-   - an artist  
-2. **Extract** these references from LaTeX cleanly.  
-3. **Request** external tools to resolve each one.  
-4. **Generate** correct `\href{…}{…}` wrappers.  
-5. **Rewrite** the full LaTeX document.  
-6. **Preserve** formatting and leave unrelated content untouched.
+```python
+@dataclass
+class MusicEntity:
+    name: str                          # Title of album/track
+    artist: str                        # Primary artist
+    type: str                          # "album" or "track"
+    year: Optional[int]                # Release year
+    latex_text: str                    # Original LaTeX (e.g., "\\album{Title}")
+    start_index: int                   # Start position in LaTeX string
+    end_index: int                     # End position in LaTeX string
+    platform_url: Optional[str]        # Resolved Apple Music URL
+    smartlink_url: Optional[str]       # Final smart link URL
+```
+
+---
+
+## 12. Extensibility
+
+### 12.1 Custom Agent Strategies
+
+New agent strategies can be registered via setuptools entry points:
+
+```toml
+[project.entry-points."latex_music_linker.agents"]
+my_agent = "my_package.agent:MyAgentStrategy"
+```
+
+### 12.2 Future Platform Support
+
+The architecture supports adding:
+
+- Spotify search (in addition to Apple Music)
+- Bandcamp album/track resolution
+- YouTube Music metadata
+- Alternative smart-link providers
+
+### 12.3 Format Extensions
+
+The parsing approach could be extended to:
+
+- Support additional LaTeX commands
+- Extract from Markdown or HTML
+- Custom regex patterns
+
+---
+
+## 13. Summary of System Behavior
+
+The system:
+
+1. **Detects** `\album{...}` and `\song{...}` commands in LaTeX documents.
+2. **Enriches** entities with artist/year metadata using pluggable agent strategies.
+3. **Resolves** each entity to an Apple Music URL via iTunes Search API.
+4. **Converts** platform URLs to universal smart links via song.link redirector.
+5. **Rewrites** the LaTeX document with `\href{...}{...}` wrappers.
+6. **Preserves** all original formatting and avoids double-linking.
