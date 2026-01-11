@@ -2,6 +2,7 @@
 .github/
 .vscode/
 .uv-cache/
+*.DS_Store
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
