@@ -14,7 +14,7 @@ def test_agent_fallback_to_heuristic(monkeypatch, caplog):
     monkeypatch.setattr(core, "resolve_entities", fake_resolve)
 
     caplog.set_level(logging.WARNING, logger=core.LOG.name)
-    latex = r"Artist's \textit{Some Album}"
+    latex = r"Artist's \album{Some Album}"
     linked = core.process_latex_string(latex, agent_name="missing-agent")
 
     assert "\\href" in linked
@@ -42,7 +42,7 @@ def test_stub_agent_receives_candidates(monkeypatch):
 
     monkeypatch.setattr(agent_module, "agent_factories", lambda: {"stub": StubStrategy})
 
-    latex = r"Artist wrote ``Song''"
+    latex = r"Artist wrote \song{Song}"
     core.process_latex_string(latex, agent_name="stub")
 
     assert seen_artists and all(artist == "Stub Artist" for artist in seen_artists)

@@ -4,13 +4,13 @@ from latex_music_linker.parsing import MusicEntity, apply_links_to_latex, find_c
 
 
 def test_apply_links_to_latex_wraps_entities():
-    latex = r"Artist's \\textit{Some Album}"
+    latex = r"Artist's \album{Some Album}"
     e = MusicEntity(
         name="Some Album",
         artist="Artist",
         type="album",
         year=None,
-        latex_text="\\textit{Some Album}",
+        latex_text="\\album{Some Album}",
         start_index=9,
         end_index=len(latex),
         platform_url="URL",

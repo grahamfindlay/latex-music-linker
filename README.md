@@ -9,7 +9,18 @@ pip install -e .
 latex-music-linker examples/newsletter_example.tex examples/newsletter_example_linked.tex
 ```
 
-This will read the input LaTeX, detect italicised and quoted titles, resolve them via Apple Music + song.link redirector, and write a linked LaTeX file.
+This will read the input LaTeX, detect `\album{...}` and `\song{...}` commands, resolve them via Apple Music + song.link redirector, and write a linked LaTeX file.
+
+### LaTeX setup
+
+Define these commands in your preamble:
+
+```latex
+\newcommand{\album}[1]{\textit{#1}} % Italicize album titles
+\newcommand{\song}[1]{``#1''} % Quote song titles
+```
+
+Then use `\album{Title}` and `\song{Title}` in your document.
 
 ### Agent strategies
 

@@ -23,15 +23,15 @@ class MusicEntity:
     smartlink_url: str | None = None
 
 
-ITALIC_PATTERN = re.compile(r"\\textit\{([^}]*)\}")
-QUOTE_PATTERN = re.compile(r"``([^']*)''|\"([^\"]+)\"")
+ALBUM_PATTERN = re.compile(r"\\album\{([^}]*)\}")
+SONG_PATTERN = re.compile(r"\\song\{([^}]*)\}")
 
 
 def find_candidates(latex: str) -> list[MusicEntity]:
     """Heuristically extract album/track candidates from LaTeX.
 
-    - \textit{Title} -> assume album
-    - ``Title'' or "Title" -> assume track
+    - \\album{Title} -> album
+    - \\song{Title} -> track
 
     Artist inference is NOT handled here; in a production system an AI agent
     would infer the artist from context and populate the MusicEntity objects.
@@ -39,8 +39,8 @@ def find_candidates(latex: str) -> list[MusicEntity]:
 
     entities: list[MusicEntity] = []
 
-    # Italic = album
-    for m in ITALIC_PATTERN.finditer(latex):
+    # \album{...} = album
+    for m in ALBUM_PATTERN.finditer(latex):
         title = m.group(1).strip()
         if not title:
             continue
@@ -56,9 +56,9 @@ def find_candidates(latex: str) -> list[MusicEntity]:
             )
         )
 
-    # Quoted = track
-    for m in QUOTE_PATTERN.finditer(latex):
-        title = m.group(1) or m.group(2)
+    # \song{...} = track
+    for m in SONG_PATTERN.finditer(latex):
+        title = m.group(1)
         if not title:
             continue
         entities.append(
