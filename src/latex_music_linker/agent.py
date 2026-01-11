@@ -114,6 +114,8 @@ class LLMStrategy(AgentStrategy):
         cmd.extend(self.extra_args)
         cmd.append(payload)
 
+        LOG.debug("LLM payload: %s", payload)
+
         proc = subprocess.run(cmd, capture_output=True, text=True)
         if proc.returncode != 0:
             raise AgentError(
@@ -121,6 +123,8 @@ class LLMStrategy(AgentStrategy):
             )
 
         output = proc.stdout.strip()
+        LOG.debug("LLM raw response: %s", output)
+
         if not output:
             raise AgentError("llm produced no output")
 
@@ -259,6 +263,8 @@ class ClaudeCodeStrategy(AgentStrategy):
 
         cmd = [self.claude_binary, "--print", "-p", system_prompt, payload]
 
+        LOG.debug("Claude payload: %s", payload)
+
         proc = subprocess.run(cmd, capture_output=True, text=True)
         if proc.returncode != 0:
             raise AgentError(
@@ -266,6 +272,8 @@ class ClaudeCodeStrategy(AgentStrategy):
             )
 
         output = proc.stdout.strip()
+        LOG.debug("Claude raw response: %s", output)
+
         if not output:
             raise AgentError("claude produced no output")
 
