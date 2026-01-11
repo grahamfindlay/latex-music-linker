@@ -85,3 +85,14 @@ uv run latex-music-linker \
 - `examples/` – example LaTeX inputs
 - `tests/` – basic tests
 - `scripts/` – helper scripts
+
+## TODOs
+
+- [ ] The LLM and heuristic agents should be instructed to also extract year, if it is possible to do so with high confidence.
+- [ ] Verify that albums are extracted and used to improve **song** search accuracy.
+- [ ] Explore using the Anthropic Agent SDK, because single-shot prompting is brittle.
+- [ ] Test more LLM models. Gemini 3.0 Flash is fast, cheat, and works well-enough, but I suspect better models exist.
+- [ ] Add more support for testing and debugging the agent integration, especially agent outputs.
+- [ ] Add much more comprehensive and difficult tests, including observed failure modes.
+- [ ] Add caching layer for resolved links to avoid repeated API calls.
+- [ ] Some links do not inserted at all, investigate why. I suspect a timeout on the song.link API needs to be increased.
