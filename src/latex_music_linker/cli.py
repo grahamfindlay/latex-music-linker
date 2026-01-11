@@ -48,8 +48,12 @@ def main(argv: list[str] | None = None) -> None:
         agent_name=args.agent,
         agent_options=agent_options,
         country=args.country,
+        retry=args.retry,
     )
-    print(f"Wrote linked LaTeX to {output_path}")
+    if args.retry:
+        print(f"Retried failed links; wrote result to {output_path}")
+    else:
+        print(f"Wrote linked LaTeX to {output_path}")
 
 
 def _run_dry_run(input_path: Path) -> None:
@@ -111,6 +115,11 @@ def _build_parser() -> argparse.ArgumentParser:
         "--dry-run",
         action="store_true",
         help="Print the JSON payload that would be sent to the agent, then exit.",
+    )
+    parser.add_argument(
+        "--retry",
+        action="store_true",
+        help="Retry failed song.link/not-found links instead of processing all entities.",
     )
     parser.add_argument(
         "-v",

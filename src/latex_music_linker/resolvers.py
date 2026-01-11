@@ -147,6 +147,14 @@ def smart_link_resolver(platform_url: str) -> dict[str, Any]:
             "error": f"network failure: {e}",
         }
 
+    # Check if song.link returned "not-found" (often due to rate limiting or no match)
+    if resp.url.endswith("/not-found") or resp.url == "https://song.link/not-found":
+        return {
+            "smartlink_url": None,
+            "redirector_url": redirector_url,
+            "error": "song.link returned not-found",
+        }
+
     # After following redirects, the final URL is the smartlink
     # e.g., https://album.link/i/1833088041 or https://song.link/i/...
     return {

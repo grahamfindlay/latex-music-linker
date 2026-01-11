@@ -104,4 +104,5 @@ uv run latex-music-linker input.tex output.tex -v --agent llm
 - [ ] Add much more comprehensive and difficult tests, including observed failure modes.
   - [ ] Handle `https://song.link/not-found`. Add retry flag.
 - [ ] Add caching layer for resolved links to avoid repeated API calls.
-- [ ] Some links do not inserted at all, investigate why. I suspect a timeout on the song.link API needs to be increased.
+  - [ ] Ask song.link devs for an API key.
+- [ ] Some links do not inserted at all, investigate why.

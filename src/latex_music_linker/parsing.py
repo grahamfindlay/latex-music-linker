@@ -27,6 +27,10 @@ ALBUM_PATTERN = re.compile(r"\\album\{([^}]*)\}")
 SONG_PATTERN = re.compile(r"\\song\{([^}]*)\}")
 # Pattern to detect if a position is inside a link command argument
 LINK_WRAPPER_PATTERN = re.compile(r"\\(?:href|gref)\{[^}]*\}\{$")
+# Pattern to detect failed song.link hrefs that need retry
+NOTFOUND_HREF_PATTERN = re.compile(
+    r"\\href\{https://song\.link/not-found\}\{(\\(?:song|album)\{[^}]*\})\}"
+)
 
 
 def _is_inside_link(latex: str, match_start: int) -> bool:
@@ -80,6 +84,52 @@ def find_candidates(latex: str) -> list[MusicEntity]:
                 type="track",
                 year=None,
                 latex_text=m.group(0),
+                start_index=m.start(),
+                end_index=m.end(),
+            )
+        )
+
+    entities.sort(key=lambda e: e.start_index)
+    return entities
+
+
+def find_failed_links(latex: str) -> list[MusicEntity]:
+    """Find music entities wrapped in failed song.link/not-found hrefs.
+
+    Returns MusicEntity objects where:
+    - start_index/end_index span the entire \\href{...}{...} wrapper
+    - latex_text is just the inner \\song{} or \\album{} command
+    - name/type are extracted from the inner command
+    """
+
+    entities: list[MusicEntity] = []
+
+    for m in NOTFOUND_HREF_PATTERN.finditer(latex):
+        inner_cmd = m.group(1)  # e.g., \song{Future Legend}
+
+        # Extract type and name from the inner command
+        album_match = ALBUM_PATTERN.match(inner_cmd)
+        song_match = SONG_PATTERN.match(inner_cmd)
+
+        if album_match:
+            name = album_match.group(1).strip()
+            entity_type = "album"
+        elif song_match:
+            name = song_match.group(1).strip()
+            entity_type = "track"
+        else:
+            continue
+
+        if not name:
+            continue
+
+        entities.append(
+            MusicEntity(
+                name=name,
+                artist="UNKNOWN",
+                type=entity_type,
+                year=None,
+                latex_text=inner_cmd,
                 start_index=m.start(),
                 end_index=m.end(),
             )
