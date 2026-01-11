@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import shutil
 import subprocess
 from dataclasses import asdict
@@ -16,6 +17,19 @@ LOG = logging.getLogger(__name__)
 
 class AgentError(RuntimeError):
     """Raised when an agent cannot enrich entities."""
+
+
+def _strip_markdown_fences(text: str) -> str:
+    """Strip markdown code fences from LLM output.
+
+    Many LLMs wrap JSON in ```json ... ``` blocks even when asked for raw JSON.
+    """
+    # Match ```json or ``` at start, and ``` at end
+    pattern = r"^\s*```(?:json)?\s*\n?(.*?)\n?\s*```\s*$"
+    match = re.match(pattern, text, re.DOTALL)
+    if match:
+        return match.group(1).strip()
+    return text.strip()
 
 
 class AgentStrategy:
@@ -178,6 +192,7 @@ class LLMStrategy(AgentStrategy):
         )
 
         output = self._run_llm(system_prompt, payload)
+        output = _strip_markdown_fences(output)
 
         try:
             data = json.loads(output)
@@ -322,6 +337,7 @@ class ClaudeCodeStrategy(AgentStrategy):
         )
 
         output = self._run_claude(system_prompt, payload)
+        output = _strip_markdown_fences(output)
 
         try:
             data = json.loads(output)

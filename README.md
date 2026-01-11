@@ -4,13 +4,6 @@ Automatically detect references to music albums and songs in LaTeX newsletters a
 
 ## Quickstart
 
-```bash
-pip install -e .
-latex-music-linker examples/newsletter_example.tex examples/newsletter_example_linked.tex
-```
-
-This will read the input LaTeX, detect `\album{...}` and `\song{...}` commands, resolve them via Apple Music + song.link redirector, and write a linked LaTeX file.
-
 ### LaTeX setup
 
 Define these commands in your preamble:
@@ -22,16 +15,53 @@ Define these commands in your preamble:
 
 Then use `\album{Title}` and `\song{Title}` in your document.
 
+### Agent-free invocation
+
+```bash
+uv run latex-music-linker examples/newsletter_example.tex examples/newsletter_example_linked.tex
+```
+
+This will attempt to read the input LaTeX, detect `\album{...}` and `\song{...}` commands, resolve them via Apple Music + song.link redirector, and write a linked LaTeX file, with zero cleverness.
+
 ### Agent strategies
 
 The parser can be enriched by pluggable agents:
 
 - `heuristic` (default) – uses only local LaTeX cues.
 - `llm` – shells out via the [`llm`](https://github.com/simonw/llm) CLI using `docs/prompts/agent_prompt.md` plus the tool schema in `docs/tools/music_resolvers.yaml`.
-- `claude-code` – uses the [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) which works with claude.ai consumer subscriptions (no API key required).
+- `claude-code` (experimental) – uses the [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) which works with claude.ai consumer subscriptions (no API key required).
 
 Select an agent with `--agent llm` (or set `LATEX_MUSIC_LINKER_AGENT`). Override prompt/tool paths with `--agent-prompt` and `--agent-tools`. If an agent fails or returns nothing, the CLI logs a warning and falls back to the heuristic spans.
 Custom backends can register an entry point in the `latex_music_linker.agents` group to appear alongside the built-ins.
+
+For example, to use Gemini 3.0 Flash, first setup the `llm` CLI (being careful about uv environment):
+
+```bash
+uv tool install llm
+uv run llm install gemini
+uv run llm keys set gemini
+# Paste Gemini API key here
+```
+
+then invoke with:
+
+```bash
+uv run latex-music-linker \
+    examples/newsletter_example.tex \
+    examples/newsletter_example_linked.tex \
+    --agent llm \
+    --llm-model gemini-3-flash-preview
+```
+
+or
+
+```bash
+export LATEX_MUSIC_LINKER_AGENT=llm
+export LATEX_MUSIC_LINKER_LLM_MODEL=gemini-3-flash-preview
+uv run latex-music-linker \
+    examples/newsletter_example.tex \
+    examples/newsletter_example_linked.tex
+```
 
 ## Layout
 
