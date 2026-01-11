@@ -78,13 +78,21 @@ uv run latex-music-linker \
     examples/newsletter_example_linked.tex
 ```
 
-## Layout
+## Development
 
 - `src/latex_music_linker/` – core library
 - `docs/` – specification and tool schemas
 - `examples/` – example LaTeX inputs
 - `tests/` – basic tests
 - `scripts/` – helper scripts
+
+```bash
+# Preview the agent payload without making API calls
+uv run latex-music-linker examples/newsletter_example.tex --dry-run
+
+# Run with verbose logging to see debug output
+uv run latex-music-linker input.tex output.tex -v --agent llm
+```
 
 ## TODOs
 
@@ -94,5 +102,6 @@ uv run latex-music-linker \
 - [ ] Test more LLM models. Gemini 3.0 Flash is fast, cheat, and works well-enough, but I suspect better models exist.
 - [ ] Add more support for testing and debugging the agent integration, especially agent outputs.
 - [ ] Add much more comprehensive and difficult tests, including observed failure modes.
+  - [ ] Handle `https://song.link/not-found`. Add retry flag.
 - [ ] Add caching layer for resolved links to avoid repeated API calls.
 - [ ] Some links do not inserted at all, investigate why. I suspect a timeout on the song.link API needs to be increased.
