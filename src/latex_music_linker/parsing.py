@@ -25,6 +25,14 @@ class MusicEntity:
 
 ALBUM_PATTERN = re.compile(r"\\album\{([^}]*)\}")
 SONG_PATTERN = re.compile(r"\\song\{([^}]*)\}")
+# Pattern to detect if a position is inside a link command argument
+LINK_WRAPPER_PATTERN = re.compile(r"\\(?:href|gref)\{[^}]*\}\{$")
+
+
+def _is_inside_link(latex: str, match_start: int) -> bool:
+    """Check if position is inside a \\href{...}{...} or \\gref{...}{...} command."""
+    prefix = latex[:match_start]
+    return bool(LINK_WRAPPER_PATTERN.search(prefix))
 
 
 def find_candidates(latex: str) -> list[MusicEntity]:
@@ -41,6 +49,8 @@ def find_candidates(latex: str) -> list[MusicEntity]:
 
     # \album{...} = album
     for m in ALBUM_PATTERN.finditer(latex):
+        if _is_inside_link(latex, m.start()):
+            continue
         title = m.group(1).strip()
         if not title:
             continue
@@ -58,6 +68,8 @@ def find_candidates(latex: str) -> list[MusicEntity]:
 
     # \song{...} = track
     for m in SONG_PATTERN.finditer(latex):
+        if _is_inside_link(latex, m.start()):
+            continue
         title = m.group(1)
         if not title:
             continue
